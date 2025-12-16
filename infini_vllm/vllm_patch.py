@@ -1,0 +1,59 @@
+import importlib
+import infini_vllm
+from .utils import print_once
+
+# A list of tuples defining the patches to apply.
+# Each tuple contains:
+# (module_path, object_name, attribute_to_patch, patch_function)
+# If object_name is None, the attribute is patched directly on the module.
+_PATCHES = [
+    ('vllm.model_executor.layers.utils', None, 'dispatch_unquantized_gemm',
+    infini_vllm.vllm.linear.dispatch_unquantized_gemm),
+    ('vllm.model_executor.layers.activation', 'SiluAndMul', 'forward',
+    infini_vllm.vllm.silu.silu_and_mul_forward),
+    ('vllm.model_executor.layers.layernorm', 'RMSNorm', 'forward',
+     infini_vllm.vllm.rms.rms_forward),
+]
+
+_patches_applied = False
+
+
+def apply_monkey_patches():
+    """
+    Applies all monkey patches defined in the _PATCHES list.
+    This function is designed to be executed only once.
+    """
+    global _patches_applied
+    if _patches_applied:
+        print_once("\033[33mWarning: Monkey patches have already been applied. Skipping.\033[0m")
+        return
+
+    for module_path, obj_name, attr_name, patch_func in _PATCHES:
+        try:
+            # Dynamically import the module
+            module = importlib.import_module(module_path)
+
+            # Get the target object to patch
+            target_obj = getattr(module, obj_name) if obj_name else module
+            target_name = f"{module_path}.{obj_name}" if obj_name else module_path
+
+            # Check if the specific attribute is already patched
+            if getattr(target_obj, attr_name) is patch_func:
+                print_once(
+                    f"\033[33mWarning: {target_name}.{attr_name} is already patched. Skipping.\033[0m"
+                )
+                continue
+
+            # Apply the patch
+            setattr(target_obj, attr_name, patch_func)
+
+            print_once(f"\033[31mSuccessfully patched {target_name}.{attr_name}.\033[0m")
+
+        except (ImportError, AttributeError) as e:
+            print_once(f"\033[31mFailed to apply patch for {module_path}.{obj_name}.{attr_name}: {e}\033[0m")
+
+    _patches_applied = True
+
+
+# Apply all patches when this module is imported.
+apply_monkey_patches()
