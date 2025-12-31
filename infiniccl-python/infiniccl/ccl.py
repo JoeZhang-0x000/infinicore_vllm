@@ -11,6 +11,12 @@ rt_lib = ctypes.CDLL(rt_lib_path)
 
 rt_lib.infinirtInit()
 
+INFINICCL_UNIQUE_ID_BYTES = 128
+class InfinicclUniqueId(ctypes.Structure):
+    _fields_ = [
+        ("internal", ctypes.c_byte * INFINICCL_UNIQUE_ID_BYTES),
+    ]
+
 ccl_lib.infinicclCommInitAll.argtypes = [
     ctypes.c_int,  # infiniDevice_t
     ctypes.POINTER(infinicclComm_t),  # infinicclComm_t *comms
@@ -18,6 +24,21 @@ ccl_lib.infinicclCommInitAll.argtypes = [
     ctypes.POINTER(ctypes.c_int),  # const int *device_ids
 ]
 ccl_lib.infinicclCommInitAll.restype = infiniStatus_t
+
+ccl_lib.infinicclGetUniqueId.argtypes = [
+    ctypes.c_int,  # infiniDevice_t
+    ctypes.POINTER(InfinicclUniqueId),  # InfinicclUniqueId *id
+]
+ccl_lib.infinicclGetUniqueId.restype = infiniStatus_t
+
+ccl_lib.infinicclCommInitRank.argtypes = [
+    ctypes.c_int,  # infiniDevice_t
+    ctypes.POINTER(infinicclComm_t),  # infinicclComm_t *comm
+    ctypes.c_int,  # int nranks
+    InfinicclUniqueId,  # InfinicclUniqueId uniqueId
+    ctypes.c_int,  # int rank
+]
+ccl_lib.infinicclCommInitRank.restype = infiniStatus_t
 
 ccl_lib.infinicclCommDestroy.argtypes = [infinicclComm_t]
 ccl_lib.infinicclCommDestroy.restype = infiniStatus_t
@@ -112,6 +133,24 @@ def sync_stream(stream: infinirtStream_t):
 
 def device_sync():
     status = rt_lib.infinirtDeviceSynchronize()
+    check_status(status)
+
+def get_unique_id(device_type: DEVICE):
+    unique_id = InfinicclUniqueId()
+    status = ccl_lib.infinicclGetUniqueId(device_type.value, ctypes.byref(unique_id))
+    check_status(status)
+    return unique_id
+
+def comm_init_rank(
+    device_type: DEVICE,
+    comm: InfinicclComm,
+    nranks: int,
+    unique_id: InfinicclUniqueId,
+    rank: int,
+):
+    status = ccl_lib.infinicclCommInitRank(
+        device_type.value, ctypes.byref(comm.comm_ptr), nranks, unique_id, rank
+    )
     check_status(status)
 
 
