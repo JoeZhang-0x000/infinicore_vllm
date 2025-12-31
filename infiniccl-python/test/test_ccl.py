@@ -79,6 +79,9 @@ def test_all_reduce_ops(workers_env, infini_op, torch_op_func):
 
     expected_buf = torch_op_func(torch.stack(send_bufs))
 
+    print(f"Received bufs for operator {infini_op.name}:", recv_bufs)
+    print(f"Expected buf for operator {infini_op.name}:", expected_buf)
+
     for i, recv_buf in enumerate(recv_bufs):
         torch.testing.assert_close(
             recv_buf, 

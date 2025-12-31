@@ -17,7 +17,7 @@ sampling_params = SamplingParams(temperature=0.8, top_p=0.95, max_tokens=100)
 
 def main():
     # Create an LLM.
-    llm = LLM(model="/root/huggingface/Qwen3-0.6B", enforce_eager=True, tensor_parallel_size=8)
+    llm = LLM(model="/root/huggingface/Qwen3-0.6B", enforce_eager=True, tensor_parallel_size=2)
     # Generate texts from the prompts.
     # The output is a list of RequestOutput objects
     # that contain the prompt, generated text, and other information.
